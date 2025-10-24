@@ -2,7 +2,7 @@ import delay from './delay'
 import PinCode, { PinStatus } from './PinCode'
 import { PinResultStatus, noBiometricsConfig } from './utils'
 
-import AsyncStorage from '@react-native-community/async-storage'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import * as React from 'react'
 import {
   StyleProp,
@@ -12,7 +12,6 @@ import {
   ViewStyle
 } from 'react-native'
 import * as Keychain from 'react-native-keychain'
-import TouchID from 'react-native-touch-id'
 
 /**
  * Pin Code Enter PIN Page
@@ -86,9 +85,6 @@ export interface IProps {
   titleAttemptFailed?: string
   titleComponent: any
   titleConfirmFailed?: string
-  touchIDDisabled: boolean
-  touchIDSentence: string
-  touchIDTitle?: string
   passcodeFallback?: boolean
   vibrationEnabled?: boolean
   delayBetweenAttempts?: number
@@ -111,7 +107,6 @@ class PinCodeEnter extends React.PureComponent<IProps, IState> {
     super(props)
     this.state = { pinCodeStatus: PinResultStatus.initial, locked: false }
     this.endProcess = this.endProcess.bind(this)
-    this.launchTouchID = this.launchTouchID.bind(this)
     if (!this.props.storedPin) {
       Keychain.getInternetCredentials(
         this.props.pinCodeKeychainName,
@@ -124,10 +119,6 @@ class PinCodeEnter extends React.PureComponent<IProps, IState> {
     }
   }
 
-  componentDidMount() {
-    if (!this.props.touchIDDisabled) this.triggerTouchID()
-  }
-
   componentDidUpdate(
     prevProps: Readonly<IProps>,
     prevState: Readonly<IState>,
@@ -136,21 +127,6 @@ class PinCodeEnter extends React.PureComponent<IProps, IState> {
     if (prevProps.pinStatusExternal !== this.props.pinStatusExternal) {
       this.setState({ pinCodeStatus: this.props.pinStatusExternal })
     }
-    if (prevProps.touchIDDisabled && !this.props.touchIDDisabled) {
-      this.triggerTouchID()
-    }
-  }
-
-  triggerTouchID() {
-    !!TouchID && TouchID.isSupported()
-      .then(() => {
-        setTimeout(() => {
-          this.launchTouchID()
-        })
-      })
-      .catch((error: any) => {
-        console.warn('TouchID error', error)
-      })
   }
 
   endProcess = async (pinCode?: string) => {
@@ -205,35 +181,6 @@ class PinCodeEnter extends React.PureComponent<IProps, IState> {
     }
   }
 
-  async launchTouchID() {
-    const optionalConfigObject = {
-      imageColor: '#e00606',
-      imageErrorColor: '#ff0000',
-      sensorDescription: 'Touch sensor',
-      sensorErrorDescription: 'Failed',
-      cancelText: this.props.textCancelButtonTouchID || 'Cancel',
-      fallbackLabel: 'Show Passcode',
-      unifiedErrors: false,
-      passcodeFallback: this.props.passcodeFallback
-    }
-    try {
-      await TouchID.authenticate(
-        this.props.touchIDSentence,
-        Object.assign({}, optionalConfigObject, {
-          title: this.props.touchIDTitle
-        })
-      ).then((success: any) => {
-        this.endProcess(this.props.storedPin || this.keyChainResult)
-      })
-    } catch (e) {
-      if (!!this.props.callbackErrorTouchId) {
-        this.props.callbackErrorTouchId(e)
-      } else {
-        console.log('TouchID error', e)
-      }
-    }
-  }
-
   render() {
     const pin =
       this.props.storedPin || this.keyChainResult
@@ -255,7 +202,6 @@ class PinCodeEnter extends React.PureComponent<IProps, IState> {
           customBackSpaceIcon={this.props.customBackSpaceIcon}
           emptyColumnComponent={this.props.emptyColumnComponent}
           endProcess={this.endProcess}
-          launchTouchID={this.launchTouchID}
           getCurrentLength={this.props.getCurrentLength}
           iconButtonDeleteDisabled={this.props.iconButtonDeleteDisabled}
           numbersButtonOverlayColor={
